@@ -1,0 +1,75 @@
+# Vamos a calcular las diferencias entre p_abstemio_stress y p_abstemio_relax
+#para ver si hay diferencias entre personas que no consumen alcohol por el estrés, es decir
+#el efecto exclusivo del estrés sin alcohol de por medio
+
+tabla_abstemio_stress<-tabla_abstemio_stress %>% select(starts_with("rat"))
+tabla_control<-tabla_control %>% select(starts_with("rat"))
+tabla_alcohol_relax<-tabla_abstemio_stress %>% select(starts_with("rat"))
+tabla_alcohol_stress<-tabla_alcohol_stress %>% select(starts_with("rat"))
+nratas<-nrow(tabla_abstemio_stress) 
+
+
+
+
+#efecto del estrés
+p_stress <- c()
+# Realizar el test de Wilcoxon para los conjuntos de datos filtrados
+for (n in 1:nratas) {
+  c_abstemio_stress <- as.numeric(tabla_abstemio_stress[n,])
+  c_abstemio_relax <- as.numeric(tabla_control[n,])
+  resultado_stress<- wilcox.test(c_abstemio_stress, c_abstemio_relax, exact = FALSE)
+  p_stress <- c(p_stress, resultado_stress$p.value)
+}
+
+result_stress <- data.frame(indices_proteinas, P_Value = p_stress)
+
+
+
+
+
+
+
+
+
+#efecto del alcohol
+p_alcohol <- c()
+for (n in 1:nratas) {
+  c_alcohol_relax <- as.numeric(tabla_alcohol_relax[n,])
+  c_abstemio_relax <- as.numeric(tabla_control[n,])
+  resultado_alcohol<- wilcox.test(c_alcohol_relax, c_abstemio_relax, exact = FALSE)
+  p_alcohol <- c(p_alcohol, resultado_alcohol$p.value)
+}
+
+result_alcohol <- data.frame(indices_proteinas, P_Value = p_alcohol)
+
+
+# Cuenta cuántos valores de 'P_Value' son menores que 0.05
+desrregulados_alcohol <- sum(result_alcohol$P_Value < 0.05)
+
+# Imprime el resultado
+print(desrregulados_alcohol)
+
+
+
+
+
+#efecto del alcohol y el estrés en conjunto
+
+p_alcohol_stress <- c()
+for (n in 1:nratas) {
+  c_alcohol_stress <- as.numeric(tabla_alcohol_stress[n,])
+  c_abstemio_relax <- as.numeric(tabla_control[n,])
+  result_alcohol_stress<- wilcox.test(c_abstemio_relax, c_alcohol_stress, exact = TRUE)
+  p_alcohol_stress <- c(p_alcohol_stress, result_alcohol_stress$p.value)
+}
+
+result_alcohol_stress <- data.frame(indices_proteinas, P_Value = p_alcohol_stress)
+
+# Cuenta cuántos valores de 'P_Value' son menores que 0.05
+desrregulados_alcohol_stress <- sum(result_alcohol_stress$P_Value < 0.05)
+
+# Imprime el resultado
+print(desrregulados_alcohol_stress)
+
+
+
