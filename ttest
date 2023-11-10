@@ -1,0 +1,136 @@
+#Vamos a calcular las diferencias entre p_abstemio_stress y p_abstemio_relax
+#para ver si hay diferencias entre personas que no consumen alcohol por el estrés, es decir
+#el efecto exclusivo del estrés sin alcohol de por medio
+
+tabla_abstemio_stress<-tabla_abstemio_stress %>% select(starts_with("rat"))
+tabla_control<-tabla_control %>% select(starts_with("rat"))
+tabla_alcohol_relax<-tabla_alcohol_relax %>% select(starts_with("rat"))
+tabla_alcohol_stress<-tabla_alcohol_stress %>% select(starts_with("rat"))
+nprot<-nrow(tabla_abstemio_stress) 
+indices_proteinas<-df_alcohol[,(1:2)]
+
+
+
+#efecto del estrés
+p_stress <- c()
+# Realizar el test de Wilcoxon para los conjuntos de datos filtrados
+for (n in 1:nprot) {
+  c_abstemio_stress <- as.numeric(tabla_abstemio_stress[n,])
+  c_abstemio_relax <- as.numeric(tabla_control[n,])
+  resultado_stress<- t.test(c_abstemio_stress, c_abstemio_relax, exact = FALSE)
+  p_stress <- c(p_stress, resultado_stress$p.value)
+}
+
+result_stress <- data.frame(indices_proteinas, P_Value = p_stress)
+
+significativa_stress<- result_stress %>% filter(result_stress$P_Value < 0.05)
+
+# write.xlsx(result_stress, "alcohol/result_stress.xlsx", SheetName = "Resultado_stress")
+
+
+
+
+
+#efecto del alcohol
+p_alcohol <- c()
+for (n in 1:nprot) {
+  c_alcohol_relax <- as.numeric(tabla_alcohol_relax[n,])
+  c_abstemio_relax <- as.numeric(tabla_control[n,])
+  resultado_alcohol<- t.test(c_alcohol_relax, c_abstemio_relax, exact = FALSE)
+  p_alcohol <- c(p_alcohol, resultado_alcohol$p.value)
+}
+
+result_alcohol <- data.frame(indices_proteinas, P_Value = p_alcohol)
+significativa_alcohol <- result_alcohol %>% filter(result_alcohol$P_Value < 0.05  )
+
+# write.xlsx(result_alcohol, "alcohol/result_alcohol.xlsx", SheetName = "result_alcohol")
+
+
+
+
+
+
+p_alcohol_stress <- c()
+
+for (n in 1:nprot) {
+  c_alcohol_stress <- as.numeric(tabla_alcohol_stress[n,])
+  c_abstemio_relax <- as.numeric(tabla_control[n,])
+  
+  # Verifica si las dos series son idénticas
+  if(all(c_alcohol_stress == c_abstemio_relax)) {
+    p_value <- 1
+  } else {
+    result_alcohol_stress <- t.test(c_abstemio_relax, c_alcohol_stress, exact = FALSE)
+    p_value <- result_alcohol_stress$p.value
+  }
+  
+  p_alcohol_stress <- c(p_alcohol_stress, p_value)
+}
+
+result_alcohol_stress <- data.frame(indices_proteinas, P_Value = p_alcohol_stress)
+# write.xlsx(result_alcohol_stress, "alcohol/result_alcohol_stress.xlsx", SheetName = "result_alcohol_stress")
+
+
+# Cuenta cuántos valores de 'P_Value' son menores que 0.05
+significativas_alcohol_stress <- result_alcohol_stress %>% filter(P_Value < 0.05)
+
+
+
+
+
+
+
+
+
+
+
+
+# Efecto del estrés en ratones alcohólicos
+p_alcoholizados_stress <- c()
+for (n in 1:nprot) {
+  c_alcohol_stress <- as.numeric(tabla_alcohol_stress[n,])
+  c_alcohol_relax <- as.numeric(tabla_alcohol_relax[n,])
+  
+  # Verifica si las dos series son idénticas
+  if(all(c_alcohol_stress == c_alcohol_relax)) {
+    p_value <- 1
+  } else {
+    result_alcoholizados_stress <- t.test(c_alcohol_relax, c_alcohol_stress, exact = FALSE)
+    p_value <- result_alcoholizados_stress$p.value
+  }
+  
+  p_alcoholizados_stress <- c(p_alcoholizados_stress, p_value)
+}
+
+result_alcoholizados_stress <- data.frame(indices_proteinas, P_Value = p_alcoholizados_stress)
+significativa_alcoholizados_stress <- result_alcoholizados_stress %>% filter(P_Value < 0.05)
+#write.xlsx(result_alcoholizados_stress, "alcohol/result_alcoholizados_stress.xlsx", SheetName = "result_alcoholizados_stress")
+
+
+
+
+
+
+# Efecto del estrés en ratones alcohólicos
+p_estresados_alcohol <- c()
+for (n in 1:nprot) {
+  c_alcohol_stress <- as.numeric(tabla_alcohol_stress[n,])
+  c_abstemio_stress <- as.numeric(tabla_abstemio_stress[n,])
+  
+  # Verifica si las dos series son idénticas
+  if(all(c_alcohol_stress == c_abstemio_stress)) {
+    p_value <- 1
+  } else {
+    result_estresados_alcohol <- t.test(c_abstemio_stress, c_alcohol_stress, exact = FALSE)
+    p_value <- result_estresados_alcohol$p.value
+  }
+  
+  p_estresados_alcohol <- c(p_estresados_alcohol, p_value)
+}
+
+result_estresados_alcohol <- data.frame(indices_proteinas, P_Value = p_estresados_alcohol)
+significativa_estresados_alcohol <- result_estresados_alcohol %>% filter(P_Value < 0.05)
+#write.xlsx(result_estresados_alcohol, "alcohol/result_estresados_alcohol.xlsx", SheetName = "result_estresados_alcohol")
+
+
+
