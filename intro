@@ -1,0 +1,132 @@
+library(readxl)
+library(data.table)
+#library(ggpubr)
+library(readr)
+library(stats)
+library(formattable)
+library(dplyr)
+library(car)
+library(ggplot2)
+library(ggrepel)
+library(xlsx)
+library(openxlsx)
+options(scipen = 999)
+library(tm)
+library(tidytext)
+
+entera_alcohol <- read_excel("alcohol/230224-LFQ_incl_isoforms_FILTRADAS.xlsx")
+df_alcohol<-entera_alcohol
+sample_metadata <- read_csv("alcohol/sample-metadata.csv")
+
+accesion_alcohol<-select(df_alcohol, Accession)
+gene_ID_alcohol<-select(df_alcohol, "Gene Symbol")
+colnam<-colnames(entera_alcohol)
+indices <- grep("Normalized)", colnam)
+abundancias_alcohol<-df_alcohol[, indices]
+abundancias_alcohol[is.na(abundancias_alcohol)] <- 0
+abundancias_alcohol<- abundancias_alcohol + 0.001
+colnam<-colnames(abundancias_alcohol)
+colnam <- gsub(".*rat(\\d+).*", "\\1", colnam)
+colnam <- paste("rat-", gsub("\\D+", "", colnam), sep = "")
+colnames(abundancias_alcohol) <- colnam
+
+df_alcohol<-cbind(accesion_alcohol, gene_ID_alcohol, abundancias_alcohol)
+
+df_alcohol <- df_alcohol %>% 
+  arrange(Accession)
+
+
+
+prot_abstemio<- sample_metadata %>% 
+  filter(alcohol == "abstemio") %>% 
+  pull("sample-id")
+
+tabla_abstemio<- df_alcohol %>% 
+  select(1, 2, all_of(prot_abstemio))
+
+prot_EtOH<- sample_metadata %>% 
+  filter(alcohol == "EtOH") %>% 
+  pull("sample-id")
+
+tabla_EtOH<- df_alcohol %>% 
+  select(1, 2, all_of(prot_EtOH))
+
+
+
+
+
+prot_relax<- sample_metadata %>% 
+  filter(stress == "relax") %>% 
+  pull("sample-id")
+
+tabla_relax<- df_alcohol %>% 
+  select(1, 2, all_of(prot_relax))
+
+
+prot_stress<- sample_metadata %>% 
+  filter(stress == "stress") %>% 
+  pull("sample-id")
+
+tabla_stress<- df_alcohol %>% 
+  select(1, 2, all_of(prot_stress))
+
+
+
+
+#Grupos experimentales
+
+#control
+
+prot_control<- sample_metadata %>% 
+  filter(alcohol == "abstemio" & stress == "relax") %>% 
+  pull("sample-id")
+
+tabla_control<- df_alcohol %>% 
+  select(1, 2, all_of(prot_control))
+
+
+
+# alcohol tranqui
+prot_alcohol_relax<- sample_metadata %>% 
+  filter(alcohol == "EtOH" & stress == "relax") %>% 
+  pull("sample-id")
+
+tabla_alcohol_relax<- df_alcohol %>% 
+  select(1, 2, all_of(prot_alcohol_relax))
+
+# alcohol estresao
+
+prot_alcohol_stress<- sample_metadata %>% 
+  filter(alcohol == "EtOH" & stress == "stress") %>% 
+  pull("sample-id")
+
+tabla_alcohol_stress<- df_alcohol %>% 
+  select(1, 2, all_of(prot_alcohol_stress))
+
+
+# abstemio estresado
+prot_abstemio_stress<- sample_metadata %>% 
+  filter(alcohol == "abstemio" & stress == "stress") %>% 
+  pull("sample-id")
+
+tabla_abstemio_stress<- df_alcohol %>% 
+  select(1, 2, all_of(prot_abstemio_stress))
+
+
+tabla_control_datos<-tabla_control
+n<-ncol(tabla_control[,-(1:2)])
+tabla_control_datos$media<-(rowSums(tabla_control_datos[,-(1:2)])) / n
+
+indices_proteinas<-tabla_alcohol_stress[,(1:2)]
+tabla_abstemio<-cbind(indices_proteinas, (tabla_abstemio[,-(1:2)]/tabla_control_datos$media))
+tabla_abstemio_stress<-cbind(indices_proteinas, (tabla_abstemio_stress[,-(1:2)]/tabla_control_datos$media))
+tabla_alcohol_relax<-cbind(indices_proteinas, (tabla_alcohol_relax[,-(1:2)]/tabla_control_datos$media))
+tabla_alcohol_stress<-cbind(indices_proteinas, (tabla_alcohol_stress[,-(1:2)]/tabla_control_datos$media))
+tabla_EtOH<-cbind(indices_proteinas, (tabla_EtOH[,-(1:2)]/tabla_control_datos$media))
+tabla_relax<-cbind(indices_proteinas, (tabla_relax[,-(1:2)]/tabla_control_datos$media))
+tabla_stress<-cbind(indices_proteinas, (tabla_stress[,-(1:2)]/tabla_control_datos$media))
+tabla_control<-cbind(indices_proteinas, (tabla_control[,-(1:2)]/tabla_control_datos$media))
+
+
+
+
