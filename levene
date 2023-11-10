@@ -1,0 +1,39 @@
+# Agregar una columna "Grupo" a cada tabla
+
+tabla_abstemio_stress<-tabla_abstemio_stress[,-(1:2)]
+tabla_abstemio_stress$Grupo <- "Abstemio Stress"
+
+
+tabla_control<-tabla_control[,-(1:2)]
+tabla_control$Grupo <- "Control"
+
+
+tabla_alcohol_relax<-tabla_alcohol_relax[,-(1:2)]
+tabla_alcohol_relax$Grupo <- "Alcohol Relax"
+
+
+tabla_alcohol_stress<-tabla_alcohol_stress[,-(1:2)]
+tabla_alcohol_stress$Grupo <- "Alcohol Stress"
+
+# Renombrar las columnas en tabla_abstemio_stress
+colnames(tabla_abstemio_stress)[1:4] <- c("Rata1", "Rata2", "Rata3", "Rata4")
+
+# Renombrar las columnas en tabla_control
+colnames(tabla_control)[1:4] <- c("Rata1", "Rata2", "Rata3", "Rata4")
+
+# Renombrar las columnas en tabla_alcohol_relax
+colnames(tabla_alcohol_relax)[1:4] <- c("Rata1", "Rata2", "Rata3", "Rata4")
+
+# Renombrar las columnas en tabla_alcohol_stress
+colnames(tabla_alcohol_stress)[1:4] <- c("Rata1", "Rata2", "Rata3", "Rata4")
+
+
+datos_totales <- rbind(tabla_abstemio_stress, tabla_control, tabla_alcohol_relax, tabla_alcohol_stress)
+
+# Test de Levene para comparar varianzas
+# Crear una variable que define los grupos
+datos_totales$Grupos <- paste(datos_totales$alcohol, datos_totales$relax, sep = "_")
+
+# Test de Levene para comparar varianzas
+resultado_levene <- leveneTest(datos_totales[, 1:4] ~ Grupos, data = datos_totales)
+
