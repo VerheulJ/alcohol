@@ -1,0 +1,177 @@
+# result_alcohol <- read_excel("alcohol/result_alcohol.xlsx")
+# result_stress <- read_excel("alcohol/result_stress.xlsx")
+# result_alcohol_stress <- read_excel("alcohol/result_alcohol_stress.xlsx")
+# result_alcoholizados_stress <- read_excel("alcohol/result_alcoholizados_stress.xlsx")
+# result_estresados_alcohol<- read_excel("alcohol/result_estresados_alcohol.xlsx")
+
+
+tabla_abstemio_stress<-tabla_abstemio_stress %>% select(starts_with("rat"))
+tabla_control<-tabla_control %>% select(starts_with("rat"))
+tabla_alcohol_relax<-tabla_alcohol_relax %>% select(starts_with("rat"))
+tabla_alcohol_stress<-tabla_alcohol_stress %>% select(starts_with("rat"))
+
+cratas<-ncol(tabla_abstemio_stress)
+
+
+
+tabla_abstemio_stress_datos<-tabla_abstemio_stress
+tabla_abstemio_stress_datos$media<- rowSums(tabla_alcohol_stress) / cratas
+
+tabla_control_datos<-tabla_control
+tabla_control_datos$media<- rowSums(tabla_control) / cratas
+
+tabla_alcohol_stress_datos<-tabla_alcohol_stress
+tabla_alcohol_stress_datos$media<-rowSums(tabla_alcohol_stress / cratas)
+
+tabla_alcohol_relax_datos<-tabla_alcohol_relax
+tabla_alcohol_relax_datos$media<-rowSums(tabla_alcohol_relax) / cratas
+
+#############################################################################
+
+#Efecto alcohol
+
+#tabla_control 
+#vs
+#tabla_alcohol_relax
+
+#cociente
+cociente_alcohol<-tabla_alcohol_relax_datos$media / tabla_control_datos$media
+cociente_alcohol<-data.frame(cociente_alcohol)
+log2cociente_alcohol<-apply(cociente_alcohol, 1, log2)
+log2cociente_alcohol<-data_frame(log2cociente_alcohol)
+p_valor_alcohol<-result_alcohol$P_Value
+p_valor_alcohol<-data.frame(p_valor_alcohol)
+
+p_valor_alcohol<-data.frame(p_valor_alcohol)
+log10pvalor_alcohol<-apply(p_valor_alcohol, 1, log10)
+log10pvalor_alcohol<-data.frame(log10pvalor_alcohol)
+log10pvalor_alcohol<-apply(log10pvalor_alcohol, 1, function(x) -x)
+log10pvalor_alcohol<-data.frame(log10pvalor_alcohol)
+
+vulcanot<-data.frame(indices_proteinas, log2cociente_alcohol, log10pvalor_alcohol)
+
+
+
+p_valor<-1.30102999566
+
+vulcanot_etiquetas<- vulcanot %>% filter(log2cociente_alcohol < -1 | log2cociente_alcohol > 1)
+vulcanot_etiquetas<- vulcanot_etiquetas %>% filter(log10pvalor_alcohol>p_valor)
+
+
+
+# mas altos sobrexpresados
+
+
+tops<- vulcanot_etiquetas %>% filter(log2cociente_alcohol>1)
+tops <- tops %>% arrange(desc(log10pvalor_alcohol)) %>%  # Ordenar el DataFrame por 'log10pvalor_alcohol' en orden descendente
+  head(3)                         # Seleccionar las primeras tres filas
+
+top_rows<-tops
+
+
+# Obtener los valores de la columna 'Accesion' de las tres filas
+sobreexpresadas_evidentes_accesion <- top_rows$Accession
+
+# mas altos subrexpresados
+
+high_negative_rows <- vulcanot_etiquetas %>%
+  filter(log2cociente_alcohol < -1) %>%   # Filtrar filas con 'log2cociente_alcohol' negativo
+  arrange(desc(log10pvalor_alcohol)) %>%  # Ordenar el DataFrame resultante por 'log10pvalor_alcohol' en orden descendente
+  head(3)                         # Seleccionar las primeras tres filas
+
+# Obtener los valores de la columna 'Accesion' de las tres filas
+subrrepresentadas_evidentes_accesion <- high_negative_rows$Accession
+
+vulcanot_etiquetas_evidente<- vulcanot_etiquetas  %>% filter(log10pvalor_alcohol>p_valor)
+
+far_rows <- vulcanot_etiquetas_evidente %>%
+  arrange(desc(log2cociente_alcohol)) %>%  # Ordenar el DataFrame por 'log10pvalor_alcohol' en orden descendente
+  head(3)                         # Seleccionar las primeras tres filas
+
+# Obtener los valores de la columna 'Accesion' de las tres filas
+mas_sobreexpresadas_accesion <- far_rows$Accession
+
+
+
+# Obtener los tres valores máximos de 'log10pvalor_alcohol' para filas con 'log2cociente_alcohol' negativo
+far_negative_rows <- vulcanot_etiquetas %>%
+  filter(log2cociente_alcohol < (-1) & log10pvalor_alcohol > p_valor) %>%   # Filtrar filas con 'log2cociente_alcohol' negativo
+  arrange(log2cociente_alcohol) %>%  # Ordenar el DataFrame resultante por 'log10pvalor_alcohol' en orden descendente
+  head(3)                         # Seleccionar las primeras tres filas
+
+mas_subrrepresentadas_accesion <- far_negative_rows$Accession
+
+accession_values <- c(mas_sobreexpresadas_accesion, mas_subrrepresentadas_accesion, 
+                      subrrepresentadas_evidentes_accesion, sobreexpresadas_evidentes_accesion)
+accession_values <- data.frame("Accession" = accession_values)
+subset_desrreguladas<- subset(vulcanot, Accession %in% accession_values$Accession)
+
+########################################################################################################################
+########################################################################################################################
+#######################################################################################################################
+########################################################################################################################
+########################################################################################################################
+#######################################################################################################################
+########################################################################################################################
+########################################################################################################################
+#######################################################################################################################
+sobrexpresadas<-filter(vulcanot, log2cociente_alcohol>1 & log10pvalor_alcohol>p_valor)
+subexpresadas<-filter(vulcanot, log2cociente_alcohol<(-1) & log10pvalor_alcohol>p_valor)
+resto<-anti_join(vulcanot, sobrexpresadas) %>% anti_join(subexpresadas)
+sobrexpresadas$estado<-"Sobrexpresado"
+subexpresadas$estado<-"Subexpresado"
+
+
+df_desrreguladas<-rbind(subexpresadas, sobrexpresadas)
+# write.xlsx(df_desrreguladas, "alcohol/efecto_alcohol.xlsx", sheetName = "Desrreguladas")
+
+
+
+
+# Calcula el número de puntos en tus datos
+numero_de_puntos <- sum(
+  nrow(sobrexpresadas),
+  nrow(subexpresadas),
+  nrow(resto)
+)
+
+# Crea el gráfico sin capas geométricas
+tu_grafico <- ggplot() +
+  labs(
+    title = "Volcano efecto_alcohol",
+    x = bquote(log[2](Fold_Change)),
+    y = bquote(-log[10](pvalue)),
+    color = "Estado"
+  ) +
+  scale_color_manual(values = c("Sobrexpresado" = "lightsalmon", "Subexpresado" = "cadetblue3")) +
+  theme(panel.background = element_rect(fill = "white"),
+        axis.line = element_line(color = "black"),
+        axis.text = element_text(color = "black"),
+        axis.title = element_text(color = "black")
+  ) +
+  coord_cartesian(xlim = c(-10, 10), ylim = c(0, 10))
+
+# Agrega capas geométricas
+tu_grafico <- tu_grafico +
+  geom_point(data = sobrexpresadas, aes(x = log2cociente_alcohol, y = log10pvalor_alcohol, color = estado), size = 0.5) +
+  geom_point(data = subexpresadas, aes(x = log2cociente_alcohol, y = log10pvalor_alcohol, color = estado), size = 0.5) +
+  geom_point(data = resto, aes(x = log2cociente_alcohol, y = log10pvalor_alcohol), color = "grey", size = 0.5) +
+  geom_vline(xintercept = -1, linetype = "dashed", color = "black") +
+  geom_vline(xintercept = 1, linetype = "dashed", color = "black") +
+  geom_hline(yintercept = p_valor, linetype = "dashed", color = "black") +
+  geom_label_repel(data = subset_desrreguladas,
+                   aes(x = log2cociente_alcohol, y = log10pvalor_alcohol, label = `Gene.Symbol`),
+                   color = "black", box.padding = 0.5, point.padding = 0.3,
+                   force = 10, nudge_x = 0.00000001, nudge_y = 0.00000001)
+
+# Agrega el texto con el número de puntos
+tu_grafico <- tu_grafico +
+  geom_text(aes(x = 5, y = 9, label = paste("N =", numero_de_puntos)), size = 3, hjust = 0) +
+  geom_text(aes(x = 5, y = 8, label = paste("subexpresadas =", nrow(subexpresadas))), size = 3, hjust = 0) +
+  geom_text(aes(x = 5, y = 7, label = paste("sobrexpresadas =", nrow(sobrexpresadas))), size = 3, hjust = 0) +
+  geom_text(aes(x = 5, y = 6, label = paste("alcohol_relax vs control")), size = 3, hjust = 0)+
+  geom_text(aes(x = 4, y = p_valor + 0.25 , label = paste("p-valor(0.05)= 1.30102999566")), size = 3, hjust = 0)
+
+print(tu_grafico)  
+ruta_archivo <- "alcohol/efecto_alcohol_escala.png"
+# ggsave(filename = ruta_archivo, plot = last_plot(), device = "png", width = 10, height = 10)
