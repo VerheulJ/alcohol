@@ -1,0 +1,219 @@
+library(readxl)
+library(data.table)
+library(readr)
+library(stats)
+library(formattable)
+library(dplyr)
+library(car)
+library(ggplot2)
+library(ggrepel)
+library(xlsx)
+library(openxlsx)
+options(scipen = 999)
+library(tm)
+library(tidytext)
+
+
+fosfo_BR16 <- read_excel("alcohol/comunes/fosfo_BR16.xlsx")
+sample_metadata_16 <- read_csv("alcohol/sample-metadata.csv")
+
+
+c_BR16_abstemio<- sample_metadata_16 %>% 
+  filter(alcohol == "abstemio" & stress == "relax") %>% 
+  pull("sample-id")
+
+BR16_control<- fosfo_BR16 %>% 
+  select(1, 2, all_of(c_BR16_abstemio))
+
+c_BR16_EtOH<- sample_metadata_16 %>% 
+  filter(alcohol == "EtOH" & stress == "relax") %>% 
+  pull("sample-id")
+
+BR16_alcohol<- fosfo_BR16 %>% 
+  select(1, 2, all_of(c_BR16_EtOH))
+
+
+BR16_alcohol_numeros<-BR16_alcohol %>% select(starts_with("rat"))
+BR16_control_numeros<-BR16_control %>% select(starts_with("rat"))
+nprot<-nrow(fosfo_BR16)
+indices_proteinas<-fosfo_BR16[,(1:2)]
+ncol<-ncol(BR16_control_numeros)
+
+BR16_control_datos<-BR16_control
+BR16_control_datos$media<- rowSums(BR16_control_numeros) / ncol
+BR16_control_normalizado<-BR16_control_numeros / BR16_control_datos$media
+BR16_control_normalizado<- cbind(indices_proteinas, BR16_control_normalizado)
+BR16_control_normalizado_numeros<- BR16_control_normalizado %>% select(starts_with("rat"))
+
+BR16_alcohol_datos<-BR16_alcohol
+BR16_alcohol_datos$media<- rowSums(BR16_alcohol_numeros) / ncol
+BR16_alcohol_normalizado<-BR16_alcohol_numeros / BR16_control_datos$media
+BR16_alcohol_normalizado<- cbind(indices_proteinas, BR16_alcohol_normalizado)
+BR16_alcohol_normalizado_numeros<- BR16_alcohol_normalizado %>% select(starts_with("rat"))
+
+
+#efecto del alcohol
+#efecto del alcohol
+p_alcohol <- c()
+for (n in 1:nprot) {
+  c_alcohol <- as.numeric(BR16_alcohol_normalizado_numeros[n,])
+  c_control <- as.numeric(BR16_control_normalizado_numeros[n,])
+  
+  # Verificar si los valores son esencialmente constantes
+  if (all(c_alcohol == c_control)) {
+    p_value <- 1
+  } else {
+    resultado_alcohol <- t.test(c_alcohol, c_control, exact = FALSE)
+    p_value <- resultado_alcohol$p.value
+  }
+  
+  p_alcohol <- c(p_alcohol, p_value)
+}
+result_alcohol <- data.frame(indices_proteinas, P_Value = p_alcohol)
+significativa_alcohol <- result_alcohol %>% filter(result_alcohol$P_Value < 0.05  )
+
+cociente_alcohol<-BR16_alcohol_datos$media / BR16_control_datos$media
+cociente_alcohol<-data.frame(cociente_alcohol)
+log2cociente_alcohol<-apply(cociente_alcohol, 1, log2)
+log2cociente_alcohol<-data_frame(log2cociente_alcohol)
+
+p_valor_alcohol<-result_alcohol$P_Value
+p_valor_alcohol<-data.frame(p_valor_alcohol)
+
+p_valor_alcohol<-data.frame(p_valor_alcohol)
+log10pvalor_alcohol<-apply(p_valor_alcohol, 1, log10)
+log10pvalor_alcohol<-data.frame(log10pvalor_alcohol)
+log10pvalor_alcohol<-apply(log10pvalor_alcohol, 1, function(x) -x)
+log10pvalor_alcohol<-data.frame(log10pvalor_alcohol)
+
+vulcanot<-data.frame(indices_proteinas, log2cociente_alcohol, log10pvalor_alcohol)
+
+
+
+p_valor<-1.30102999566
+
+vulcanot_etiquetas<- vulcanot %>% filter(log2cociente_alcohol < -1 | log2cociente_alcohol > 1)
+vulcanot_etiquetas<- vulcanot_etiquetas %>% filter(log10pvalor_alcohol>p_valor)
+
+
+
+# mas altos sobrexpresados
+
+
+tops<- vulcanot_etiquetas %>% filter(log2cociente_alcohol>1)
+tops <- tops %>% arrange(desc(log10pvalor_alcohol)) %>%  # Ordenar el DataFrame por 'log10pvalor_alcohol' en orden descendente
+  head(3)                         # Seleccionar las primeras tres filas
+
+top_rows<-tops
+
+
+# Obtener los valores de la columna 'Accesion' de las tres filas
+sobreexpresadas_evidentes_accesion <- top_rows$Accession
+
+# mas altos subrexpresados
+
+
+high_negative_rows <- vulcanot_etiquetas %>%
+  filter(log2cociente_alcohol < -1) %>%   # Filtrar filas con 'log2cociente_alcohol' negativo
+  arrange(desc(log10pvalor_alcohol)) %>%  # Ordenar el DataFrame resultante por 'log10pvalor_alcohol' en orden descendente
+  head(3)                         # Seleccionar las primeras tres filas
+
+# Obtener los valores de la columna 'Accesion' de las tres filas
+subrrepresentadas_evidentes_accesion <- high_negative_rows$Accession
+
+vulcanot_etiquetas_evidente<- vulcanot_etiquetas  %>% filter(log10pvalor_alcohol>p_valor)
+
+far_rows <- vulcanot_etiquetas_evidente %>%
+  arrange(desc(log2cociente_alcohol)) %>%  # Ordenar el DataFrame por 'log10pvalor_alcohol' en orden descendente
+  head(3)                         # Seleccionar las primeras tres filas
+
+# Obtener los valores de la columna 'Accesion' de las tres filas
+mas_sobreexpresadas_accesion <- far_rows$Accession
+
+
+
+# Obtener los tres valores máximos de 'log10pvalor_alcohol' para filas con 'log2cociente_alcohol' negativo
+far_negative_rows <- vulcanot_etiquetas %>%
+  filter(log2cociente_alcohol < (-1) & log10pvalor_alcohol > p_valor) %>%   # Filtrar filas con 'log2cociente_alcohol' negativo
+  arrange(log2cociente_alcohol) %>%  # Ordenar el DataFrame resultante por 'log10pvalor_alcohol' en orden descendente
+  head(3)                         # Seleccionar las primeras tres filas
+
+mas_subrrepresentadas_accesion <- far_negative_rows$Accession
+
+accession_values <- c(mas_sobreexpresadas_accesion, mas_subrrepresentadas_accesion, 
+                      subrrepresentadas_evidentes_accesion, sobreexpresadas_evidentes_accesion)
+accession_values <- data.frame("Accession" = accession_values)
+subset_desrreguladas<- subset(vulcanot, Accession %in% accession_values$Accession)
+
+########################################################################################################################
+########################################################################################################################
+#######################################################################################################################
+########################################################################################################################
+########################################################################################################################
+#######################################################################################################################
+########################################################################################################################
+########################################################################################################################
+#######################################################################################################################
+sobrexpresadas<-filter(vulcanot, log2cociente_alcohol>1 & log10pvalor_alcohol>p_valor)
+pmin <- 1
+subexpresadas <- filter(vulcanot, log2cociente_alcohol < -1 & log10pvalor_alcohol > 1 )
+
+resto<-anti_join(vulcanot, sobrexpresadas) %>% anti_join(subexpresadas)
+sobrexpresadas$estado<-"Sobrexpresado"
+subexpresadas$estado<-"Subexpresado"
+
+
+df_desrreguladas<-rbind(subexpresadas, sobrexpresadas)
+write.xlsx(df_desrreguladas, "alcohol/fosfo/efecto_alcohol_BR16_fosfo.xlsx", sheetName = "Desrreguladas")
+
+
+
+
+# Calcula el número de puntos en tus datos
+numero_de_puntos <- sum(
+  nrow(sobrexpresadas),
+  nrow(subexpresadas),
+  nrow(resto)
+)
+
+# Crea el gráfico sin capas geométricas
+tu_grafico <- ggplot() +
+  labs(
+    title = "Volcano efecto del alcohol en la fosfoproteomica (BR16)",
+    x = bquote(log[2](Fold_Change)),
+    y = bquote(-log[10](pvalue)),
+    color = "Estado"
+  ) +
+  scale_color_manual(values = c("Sobrexpresado" = "lightsalmon", "Subexpresado" = "cadetblue3")) +
+  theme(panel.background = element_rect(fill = "white"),
+        axis.line = element_line(color = "black"),
+        axis.text = element_text(color = "black"),
+        axis.title = element_text(color = "black")
+  ) +
+  coord_cartesian(xlim = c(-5, 5), ylim = c(0, 5))
+
+# Agrega capas geométricas
+tu_grafico <- tu_grafico +
+  geom_point(data = sobrexpresadas, aes(x = log2cociente_alcohol, y = log10pvalor_alcohol, color = estado), size = 0.5) +
+  geom_point(data = subexpresadas, aes(x = log2cociente_alcohol, y = log10pvalor_alcohol, color = estado), size = 0.5) +
+  geom_point(data = resto, aes(x = log2cociente_alcohol, y = log10pvalor_alcohol), color = "grey", size = 0.5) +
+  geom_vline(xintercept = -1, linetype = "dashed", color = "black") +
+  geom_vline(xintercept = 1, linetype = "dashed", color = "black") +
+  geom_hline(yintercept = p_valor, linetype = "dashed", color = "black") +
+  geom_label_repel(data = subset_desrreguladas,
+                   aes(x = log2cociente_alcohol, y = log10pvalor_alcohol, label = `Gene.Symbol`),
+                   color = "black", box.padding = 0.5, point.padding = 0.3,
+                   force = 10, nudge_x = 0.00000001, nudge_y = 0.00000001)
+
+# Agrega el texto con el número de puntos
+tu_grafico <- tu_grafico +
+  geom_text(aes(x = 2, y = 1, label = paste("N =", numero_de_puntos)), size = 3, hjust = 0) +
+  geom_text(aes(x = 2, y = 0.5, label = paste("subexpresadas =", nrow(subexpresadas))), size = 3, hjust = 0) +
+  geom_text(aes(x = 2, y = 0, label = paste("sobrexpresadas =", nrow(sobrexpresadas))), size = 3, hjust = 0) +
+  geom_text(aes(x = -5, y = 5, label = paste("alcohol_relax vs control")), size = 3, hjust = 0)+
+  geom_text(aes(x = 2, y = p_valor - 0.1 , label = paste("p-valor(0.05)= 1.30102999566")), size = 3, hjust = 0)
+
+print(tu_grafico)  
+ruta_archivo <- "alcohol/fosfo/efecto_alcohol_BR16_fosfo.png"
+ggsave(filename = ruta_archivo, plot = last_plot(), device = "png", width = 10, height = 10)
+
